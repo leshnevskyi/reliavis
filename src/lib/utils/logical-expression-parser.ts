@@ -1,6 +1,14 @@
 type Token = string;
 
-type Operator = "&" | "|";
+enum OperatorToken {
+	And = "&",
+	Or = "|"
+}
+
+enum GroupToken {
+	Opening = "(",
+	Closing = ")"
+}
 
 enum AstNodeKind {
 	Operator = "operator",
@@ -14,60 +22,89 @@ type AstNode = {
 	right?: AstNode;
 };
 
-const precedence: Record<Operator, number> = {
-	"|": 1,
-	"&": 2
+const precedence: Record<OperatorToken, number> = {
+	[OperatorToken.Or]: 1,
+	[OperatorToken.And]: 2
 };
 
-const binaryOperators = new Set(["|", "&"]);
+const operatorTokens = new Set(Object.values(OperatorToken));
+const groupTokens = new Set(Object.values(GroupToken));
 
-const isOperator = (token: string): token is Operator => binaryOperators.has(token);
+const isOperatorToken = (token: string): token is OperatorToken =>
+	operatorTokens.has(token as OperatorToken);
 
-const tokenize = (expression: string) => {
-	const tokens = [] as Token[];
-	let current = "";
+const isGroupToken = (token: string): token is GroupToken => groupTokens.has(token as GroupToken);
 
-	for (const char of expression.replace(/\s+/g, "")) {
-		if (char === "(" || char === ")") {
-			if (current) {
-				tokens.push(current);
-				current = "";
-			}
-			tokens.push(char);
-		} else if (isOperator(char)) {
-			if (current) {
-				tokens.push(current);
-				current = "";
-			}
-			tokens.push(char);
-		} else {
-			current += char;
-		}
+class TokenBuilder {
+	#initialValue = "";
+	#accumulator = this.#initialValue;
+
+	append(char: string) {
+		this.#accumulator += char;
+
+		return this;
 	}
 
-	if (current) tokens.push(current);
+	build() {
+		const value = this.#accumulator;
+		this.#accumulator = this.#initialValue;
 
-	return tokens;
-};
+		return value;
+	}
+
+	get value() {
+		return this.#accumulator;
+	}
+
+	get isEmpty() {
+		return this.#accumulator == this.#initialValue;
+	}
+}
+
+function isLastIndex(index: number, arrayLike: ArrayLike<unknown>) {
+	return index == arrayLike.length - 1;
+}
+
+function removeSpaces(string: string) {
+	return string.replace(/\s+/g, "");
+}
+
+function tokenize(expression: string) {
+	const tokenBuilder = new TokenBuilder();
+
+	return [...removeSpaces(expression)].reduce((tokens, char, index, chars) => {
+		if (isGroupToken(char) || isOperatorToken(char)) {
+			return tokenBuilder.isEmpty ? [...tokens, char] : [...tokens, tokenBuilder.build(), char];
+		}
+
+		tokenBuilder.append(char);
+
+		if (isLastIndex(index, chars) && !tokenBuilder.isEmpty) {
+			return [...tokens, tokenBuilder.build()];
+		}
+
+		return tokens;
+	}, [] as Token[]);
+}
 
 const toPostfix = (tokens: Token[]): Token[] => {
-	const output: Token[] = [];
-	const operators: Token[] = [];
+	const output = [] as Token[];
+	const operators = [] as Token[];
 
 	for (const token of tokens) {
-		if (isOperator(token)) {
+		if (isOperatorToken(token)) {
 			while (
 				operators.length &&
-				isOperator(operators.at(-1) as Operator) &&
-				precedence[token] <= precedence[operators.at(-1) as Operator]
+				isOperatorToken(operators.at(-1) as OperatorToken) &&
+				precedence[token] <= precedence[operators.at(-1) as OperatorToken]
 			) {
 				output.push(operators.pop()!);
 			}
 			operators.push(token);
-		} else if (token === "(") {
+		} else if (token == GroupToken.Opening) {
 			operators.push(token);
-		} else if (token === ")") {
-			while (operators.length && operators[operators.length - 1] !== "(") {
+		} else if (token == GroupToken.Closing) {
+			while (operators.length && operators.at(-1) != GroupToken.Opening) {
 				output.push(operators.pop()!);
 			}
 			operators.pop();
@@ -83,25 +120,26 @@ const toPostfix = (tokens: Token[]): Token[] => {
 	return output;
 };
 
-const postfixToAst = (postfixTokens: Token[]): AstNode => {
+const postfixToAst = (postfixTokens: Token[]) => {
 	const stack: AstNode[] = [];
 
 	for (const token of postfixTokens) {
-		if (isOperator(token)) {
-			const right = stack.pop()!;
-			const left = stack.pop()!;
+		if (isOperatorToken(token)) {
+			const right = stack.pop();
+			const left = stack.pop();
 			stack.push({ kind: AstNodeKind.Operator, value: token, left, right });
 		} else {
 			stack.push({ kind: AstNodeKind.Operand, value: token });
 		}
 	}
 
-	return stack[0]!;
+	const root = stack[0];
+
+	if (root == null) throw new Error("Stack is empty. No root node is found.");
+
+	return root;
 };
 
-export const parseToAst = (expression: string): AstNode => {
-	const tokens = tokenize(expression);
-	const postfix = toPostfix(tokens);
-
-	return postfixToAst(postfix);
+export const parseToAst = (expression: string) => {
+	return postfixToAst(toPostfix(tokenize(expression)));
 };
