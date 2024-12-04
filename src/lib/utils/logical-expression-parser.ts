@@ -1,16 +1,16 @@
-type Token = string;
+export type Token = string;
 
-enum OperatorToken {
+export enum OperatorToken {
 	And = "&",
 	Or = "|"
 }
 
-enum GroupToken {
+export enum GroupToken {
 	Opening = "(",
 	Closing = ")"
 }
 
-enum AstNodeKind {
+export enum AstNodeKind {
 	Operator = "operator",
 	Operand = "operand"
 }
@@ -30,10 +30,11 @@ const precedence: Record<OperatorToken, number> = {
 const operatorTokens = new Set(Object.values(OperatorToken));
 const groupTokens = new Set(Object.values(GroupToken));
 
-const isOperatorToken = (token: string): token is OperatorToken =>
+export const isOperatorToken = (token: string): token is OperatorToken =>
 	operatorTokens.has(token as OperatorToken);
 
-const isGroupToken = (token: string): token is GroupToken => groupTokens.has(token as GroupToken);
+export const isGroupToken = (token: string): token is GroupToken =>
+	groupTokens.has(token as GroupToken);
 
 class TokenBuilder {
 	#initialValue = "";
@@ -61,15 +62,15 @@ class TokenBuilder {
 	}
 }
 
-function isLastIndex(index: number, arrayLike: ArrayLike<unknown>) {
+export function isLastIndex(index: number, arrayLike: ArrayLike<unknown>) {
 	return index == arrayLike.length - 1;
 }
 
-function removeSpaces(string: string) {
+export function removeSpaces(string: string) {
 	return string.replace(/\s+/g, "");
 }
 
-function tokenize(expression: string) {
+export function tokenize(expression: string) {
 	const tokenBuilder = new TokenBuilder();
 
 	return [...removeSpaces(expression)].reduce((tokens, char, index, chars) => {
@@ -87,7 +88,7 @@ function tokenize(expression: string) {
 	}, [] as Token[]);
 }
 
-const toPostfix = (tokens: Token[]): Token[] => {
+export function toPostfix(tokens: Token[]) {
 	const output = [] as Token[];
 	const operators = [] as Token[];
 
@@ -118,15 +119,20 @@ const toPostfix = (tokens: Token[]): Token[] => {
 	}
 
 	return output;
-};
+}
 
-const postfixToAst = (postfixTokens: Token[]) => {
+export function postfixToAst(postfixTokens: Token[]) {
 	const stack: AstNode[] = [];
 
 	for (const token of postfixTokens) {
 		if (isOperatorToken(token)) {
 			const right = stack.pop();
 			const left = stack.pop();
+
+			if (left == null || right == null) {
+				throw new Error("Invalid postfix expression.");
+			}
+
 			stack.push({ kind: AstNodeKind.Operator, value: token, left, right });
 		} else {
 			stack.push({ kind: AstNodeKind.Operand, value: token });
@@ -138,8 +144,8 @@ const postfixToAst = (postfixTokens: Token[]) => {
 	if (root == null) throw new Error("Stack is empty. No root node is found.");
 
 	return root;
-};
+}
 
-export const parseToAst = (expression: string) => {
-	return postfixToAst(toPostfix(tokenize(expression)));
-};
+export function getElementNamesFromTokens(tokens: Token[]) {
+	return tokens.filter((token) => !isOperatorToken(token) && !isGroupToken(token));
+}

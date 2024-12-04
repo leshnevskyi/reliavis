@@ -1,3 +1,14 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+	@apply outline-none;
+}
+
+table {
+	@apply border-collapse;
+}
