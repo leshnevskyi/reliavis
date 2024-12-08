@@ -1,9 +1,19 @@
-export type ElementState = {
-	isActive: boolean;
+import type { SystemConnectionNode } from "./logical-expression-parser";
+
+export enum RecoveryKind {
+	Software = "software",
+	Hardware = "hardware"
+}
+
+export type SystemElementConfig = {
 	recoveryCounts: {
-		sofware: number;
-		hardware: number;
+		[RecoveryKind.Software]: number;
+		[RecoveryKind.Hardware]: number;
 	};
+};
+
+export type ElementState = SystemElementConfig & {
+	isActive: boolean;
 };
 
 export enum NetworkNodeState {
@@ -27,20 +37,6 @@ export type NetworkEdge = {
 	kind: EdgeKind;
 	sourceNode: NetworkNode;
 	targetNode: NetworkNode;
-	rate: number;
-};
-
-export type ElementRecovery = {
-	rate: number;
-	count: number;
-};
-
-export type SystemElement = {
-	failureRate: number;
-	recoveries?: {
-		software: ElementRecovery;
-		hardware: ElementRecovery;
-	};
 };
 
 export type StateNetwork = {
@@ -49,7 +45,7 @@ export type StateNetwork = {
 };
 
 // TODO: Function implementation.
-export function buildSystemStateNetwork(elements: SystemElement[]) {
+export function buildSystemStateNetwork(systemRootNode: SystemConnectionNode) {
 	// TODO: Return an object compatible with the StateNetwork type.
 	return {} satisfies StateNetwork;
 }

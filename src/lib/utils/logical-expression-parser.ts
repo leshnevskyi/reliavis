@@ -1,3 +1,5 @@
+import type { SystemElementConfig } from "./network";
+
 export type Token = string;
 
 export enum OperatorToken {
@@ -15,12 +17,67 @@ export enum AstNodeKind {
 	Operand = "operand"
 }
 
-type AstNode = {
-	kind: AstNodeKind;
+export type AstOperatorNode = {
+	kind: AstNodeKind.Operator;
 	value: string;
-	left?: AstNode;
-	right?: AstNode;
+	left: AstNode;
+	right: AstNode;
 };
+
+export type AstOperandNode = {
+	kind: AstNodeKind.Operand;
+	value: string;
+};
+
+export type AstNode = AstOperatorNode | AstOperandNode;
+
+export type SystemElementNode = AstOperandNode & {
+	name: string;
+} & SystemElementConfig;
+
+export type SystemConnectionNode = AstOperatorNode & {
+	left: SystemNode;
+	right: SystemNode;
+};
+
+export type SystemNode = SystemConnectionNode | SystemElementNode;
+
+export function isValidSystemRootNode(node: SystemNode): node is SystemConnectionNode {
+	return node.kind == AstNodeKind.Operator;
+}
+
+export function* astWalker(node: AstNode): Generator<AstNode> {
+	if (node.kind == AstNodeKind.Operand) return yield node;
+
+	yield* astWalker(node.left);
+	yield* astWalker(node.right);
+	yield node;
+}
+
+export function astNodeToSystemNode(
+	astNode: AstNode,
+	systemElementMap: Map<string, SystemElementConfig>
+): SystemNode {
+	if (astNode.kind == AstNodeKind.Operand) {
+		const systemElementConfig = systemElementMap.get(astNode.value);
+
+		if (systemElementConfig == null) {
+			throw new Error(`System element "${astNode.value}" not found.`);
+		}
+
+		return {
+			...astNode,
+			name: astNode.value,
+			...systemElementConfig
+		} satisfies SystemElementNode;
+	}
+
+	return {
+		...astNode,
+		left: astNodeToSystemNode(astNode.left, systemElementMap),
+		right: astNodeToSystemNode(astNode.right, systemElementMap)
+	} satisfies SystemConnectionNode;
+}
 
 const precedence: Record<OperatorToken, number> = {
 	[OperatorToken.Or]: 1,
@@ -35,6 +92,10 @@ export const isOperatorToken = (token: string): token is OperatorToken =>
 
 export const isGroupToken = (token: string): token is GroupToken =>
 	groupTokens.has(token as GroupToken);
+
+export function isOperandToken(token: string) {
+	return !isOperatorToken(token) && !isGroupToken(token);
+}
 
 class TokenBuilder {
 	#initialValue = "";
