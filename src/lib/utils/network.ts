@@ -1,11 +1,13 @@
+import { clone } from "remeda";
+
 import {
 	AstNodeKind,
 	astWalker,
+	OperatorToken,
 	type SystemConnectionNode,
 	type SystemElementNode,
 	type SystemNode
 } from "./logical-expression-parser";
-import cloneDeep from "lodash/cloneDeep";
 
 export enum RecoveryKind {
 	Software = "software",
@@ -148,7 +150,7 @@ function getSystemStateFromNode(
 	const leftState = getSystemStateFromNode((node as SystemConnectionNode).left, elems);
 	const rightState = getSystemStateFromNode((node as SystemConnectionNode).right, elems);
 
-	if (node.value == "&") {
+	if (node.value == OperatorToken.And) {
 		if (leftState == NetworkNodeState.Terminal || rightState == NetworkNodeState.Terminal) {
 			return NetworkNodeState.Terminal;
 		}
@@ -160,7 +162,7 @@ function getSystemStateFromNode(
 		return NetworkNodeState.Active;
 	}
 
-	if (node.value == "|") {
+	if (node.value == OperatorToken.Or) {
 		if (leftState == NetworkNodeState.Active || rightState == NetworkNodeState.Active) {
 			return NetworkNodeState.Active;
 		}
@@ -186,7 +188,7 @@ function processElements(
 		if (elemIdx + 1 < elems.length) {
 			processElements(
 				state,
-				elems.map((elem) => cloneDeep(elem)),
+				elems.map((elem) => clone(elem)),
 				checkSystemState,
 				nodeIdx,
 				elemIdx + 1
@@ -213,6 +215,7 @@ function processElements(
 function increment(elem: StatefullSystemElementNode) {
 	if (elem.state.isActive) {
 		elem.state.isActive = false;
+
 		return;
 	}
 
@@ -222,6 +225,7 @@ function increment(elem: StatefullSystemElementNode) {
 	) {
 		elem.state.isActive = true;
 		elem.state.recoveryCounts[RecoveryKind.Hardware] += 1;
+
 		return;
 	}
 
@@ -231,6 +235,7 @@ function increment(elem: StatefullSystemElementNode) {
 	) {
 		elem.state.isActive = true;
 		elem.state.recoveryCounts[RecoveryKind.Software] += 1;
+
 		return;
 	}
 }
@@ -270,7 +275,8 @@ function edgesBetweenNodes(
 	const isSingleRecovery = isSingleRecoveryBetweenNodes(sourceNode, targetNode);
 
 	if (isSingleFailure) {
-		let edges: NetworkEdge[] = [];
+		const edges: NetworkEdge[] = [];
+
 		if (isSingleRecovery) {
 			return edges;
 		}
@@ -314,8 +320,8 @@ function isSingleFailureBetweenNodes(
 	let isFailureInfinitelyRecoverable = false;
 
 	for (let i = 0; i < sourceNode.elementsStates.length; i++) {
-		let sourceRecs = sourceNode.elementsStates[i]!.recoveryCounts;
-		let targetRecs = targetNode.elementsStates[i]!.recoveryCounts;
+		const sourceRecs = sourceNode.elementsStates[i]!.recoveryCounts;
+		const targetRecs = targetNode.elementsStates[i]!.recoveryCounts;
 
 		if (
 			sourceNode.elementsStates[i]!.isActive &&
@@ -362,8 +368,8 @@ function isSingleRecoveryBetweenNodes(sourceNode: NetworkNode, targetNode: Netwo
 	let isSingleCorrectChange: boolean | undefined = undefined;
 
 	for (let i = 0; i < sourceNode.elementsStates.length; i++) {
-		let sourceRecs = sourceNode.elementsStates[i]!.recoveryCounts;
-		let targetRecs = targetNode.elementsStates[i]!.recoveryCounts;
+		const sourceRecs = sourceNode.elementsStates[i]!.recoveryCounts;
+		const targetRecs = targetNode.elementsStates[i]!.recoveryCounts;
 
 		if (
 			!sourceNode.elementsStates[i]!.isActive &&
