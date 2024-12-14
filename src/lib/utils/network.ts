@@ -102,8 +102,6 @@ export function buildSystemStateNetwork(systemRootNode: SystemConnectionNode) {
 		}
 	}
 
-	console.log(systemState);
-
 	const stateCount = {
 		[NetworkNodeState.Active]: 0,
 		[NetworkNodeState.Recovery]: 0,
@@ -114,8 +112,6 @@ export function buildSystemStateNetwork(systemRootNode: SystemConnectionNode) {
 	for (const node of systemState.nodes) {
 		stateCount[node.state] += 1;
 	}
-
-	console.log(stateCount);
 
 	return systemState satisfies StateNetwork;
 }

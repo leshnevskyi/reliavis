@@ -86,11 +86,11 @@
 		return buildSystemStateNetwork(systemRootNode);
 	});
 
-	$inspect(systemStateNetwork);
-
 	let expressionIsValid = $derived(systemRootNode != null);
 
-	let svgElement = $state<SVGElement | null>(null);
+	let svgElement = $state<SVGSVGElement | null>(null);
+
+	$inspect(systemStateNetwork);
 
 	$effect(() => {
 		if (svgElement == null || systemStateNetwork == null) return;

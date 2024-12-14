@@ -6,23 +6,16 @@ type Node = d3.SimulationNodeDatum & {
 	state: string;
 };
 
+type SimulatedNode = Node & {
+	x: number;
+	y: number;
+};
+
 type Link = d3.SimulationLinkDatum<Node> & {
 	kind: string;
 };
 
-const linkArc = (d: Link) => {
-	const target = d.target as Node;
-	const source = d.source as Node;
-
-	const r = Math.hypot(target.x! - source.x!, target.y! - source.y!);
-
-	return `
-		M${source.x},${source.y}
-		A${r},${r} 0 0,1 ${target.x},${target.y}
-	`;
-};
-
-export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork) {
+export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetwork) {
 	d3.select(svgElement).selectAll("*").remove();
 
 	const width = svgElement.clientWidth;
@@ -33,6 +26,8 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 		.attr("viewBox", [-width / 2, -height / 2, width, height])
 		.attr("width", width)
 		.attr("height", height);
+
+	const zoomContainer = svg.append("g").attr("class", "zoom-container");
 
 	const nodes: Node[] = stateNetwork.nodes.map((node) => ({
 		id: node.name,
@@ -48,6 +43,15 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 	const kinds = Array.from(new Set(links.map((d) => d.kind)));
 	const colors = d3.scaleOrdinal(kinds, d3.schemeCategory10);
 
+	const zoom = d3
+		.zoom<SVGSVGElement, unknown>()
+		.scaleExtent([0.01, 10])
+		.on("zoom", (event) => {
+			zoomContainer.attr("transform", event.transform);
+		});
+
+	svg.call(zoom);
+
 	const simulation = d3
 		.forceSimulation(nodes)
 		.force(
@@ -55,15 +59,15 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 			d3
 				.forceLink<Node, Link>(links)
 				.id((d) => d.id)
-				.distance(() => 100) // Adjust link distance
+				.distance(() => 100)
 		)
 		.force("charge", d3.forceManyBody().strength(-5000))
 		.force("center", d3.forceCenter(0, 0))
-		.force("collide", d3.forceCollide().radius(100)) // Add collision avoidance
+		.force("collide", d3.forceCollide().radius(100))
 		.force("x", d3.forceX().strength(0.1))
 		.force("y", d3.forceY().strength(0.1));
 
-	svg
+	zoomContainer
 		.append("defs")
 		.selectAll("marker")
 		.data(kinds)
@@ -77,9 +81,9 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 		.attr("orient", "auto")
 		.append("path")
 		.attr("fill", colors)
-		.attr("d", "M0,-5L10,0L0,5");
+		.attr("d", "M0, -5L10, 0L0, 5");
 
-	const link = svg
+	const linkSelection = zoomContainer
 		.append("g")
 		.attr("fill", "none")
 		.attr("stroke-width", 1.5)
@@ -89,7 +93,7 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 		.attr("stroke", (d) => colors(d.kind))
 		.attr("marker-end", (d) => `url(#arrow-${d.kind})`);
 
-	const node = svg
+	const nodeSelection = zoomContainer
 		.append("g")
 		.attr("fill", "currentColor")
 		.attr("stroke-linecap", "round")
@@ -118,12 +122,12 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 				})
 		);
 
-	node.append("circle").attr("stroke", "white").attr("stroke-width", 1.5).attr("r", 4);
+	nodeSelection.append("circle").attr("stroke", "white").attr("stroke-width", 1.5).attr("r", 4);
 
-	node
+	nodeSelection
 		.append("text")
 		.attr("x", 8)
-		.attr("y", "0.31em")
+		.attr("y", "0.3em")
 		.text((d) => `${d.id} (${d.state})`)
 		.clone(true)
 		.lower()
@@ -132,8 +136,18 @@ export function renderNetwork(svgElement: SVGElement, stateNetwork: StateNetwork
 		.attr("stroke-width", 3);
 
 	simulation.on("tick", () => {
-		link.attr("d", linkArc);
-		node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+		linkSelection.attr("d", (d: Link) => {
+			const target = d.target as SimulatedNode;
+			const source = d.source as SimulatedNode;
+
+			const r = Math.hypot(target.x - source.x, target.y - source.y);
+
+			return `
+				M${source.x}, ${source.y}
+				A${r}, ${r} 0 0, 1 ${target.x}, ${target.y}
+			`;
+		});
+		nodeSelection.attr("transform", (d) => `translate(${d.x}, ${d.y})`);
 	});
 
 	return svg.node();
