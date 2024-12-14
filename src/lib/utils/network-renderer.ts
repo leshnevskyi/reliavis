@@ -27,7 +27,7 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 		.attr("width", width)
 		.attr("height", height);
 
-	const zoomContainer = svg.append("g").attr("class", "zoom-container");
+	const zoomContainer = svg.append("g");
 
 	const nodes: Node[] = stateNetwork.nodes.map((node) => ({
 		id: node.name,
@@ -93,6 +93,21 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 		.attr("stroke", (d) => colors(d.kind))
 		.attr("marker-end", (d) => `url(#arrow-${d.kind})`);
 
+	const linkLabelSelection = zoomContainer.append("g").selectAll("g").data(links).join("g");
+
+	linkLabelSelection
+		.append("text")
+		.attr("font-size", "10px")
+		.attr("fill", (d) => colors(d.kind))
+		.attr("text-anchor", "middle")
+		.attr("dy", "0.3em")
+		.text((d) => d.kind)
+		.clone(true)
+		.lower()
+		.attr("fill", "none")
+		.attr("stroke", "white")
+		.attr("stroke-width", 3);
+
 	const nodeSelection = zoomContainer
 		.append("g")
 		.attr("fill", "currentColor")
@@ -147,6 +162,15 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 				A${r}, ${r} 0 0, 1 ${target.x}, ${target.y}
 			`;
 		});
+
+		linkLabelSelection.attr("transform", (d) => {
+			const path = linkSelection.filter((p) => p == d).node() as SVGPathElement;
+			const totalLength = path.getTotalLength();
+			const midpoint = path.getPointAtLength(totalLength / 2);
+
+			return `translate(${midpoint.x}, ${midpoint.y})`;
+		});
+
 		nodeSelection.attr("transform", (d) => `translate(${d.x}, ${d.y})`);
 	});
 

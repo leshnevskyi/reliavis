@@ -108,7 +108,6 @@ export function buildSystemStateNetwork(systemRootNode: SystemConnectionNode) {
 		[NetworkNodeState.Terminal]: 0
 	};
 
-	// Iterate over the nodes and count the occurrences of each state
 	for (const node of systemState.nodes) {
 		stateCount[node.state] += 1;
 	}
