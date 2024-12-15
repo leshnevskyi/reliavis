@@ -100,22 +100,25 @@
 </script>
 
 <div class="flex h-screen flex-col">
-	<section class="fixed m-6 flex w-full items-center gap-2">
+	<section class="fixed z-10 flex w-full items-center gap-2 px-6 py-4">
 		<form class="flex w-full gap-5">
-			<label
-				class="group flex h-full w-1/6 flex-col gap-1 rounded-2xl bg-white/60 p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
-			>
-				<span class="text-nowrap px-2 text-xs font-medium text-stone-400">logical expression</span>
-				<input
-					bind:value={expression}
-					type="text"
-					class="h-6 w-full rounded-lg bg-transparent px-2 font-bold text-stone-900 duration-200 hover:bg-stone-900/5 focus:bg-stone-900/5"
-					placeholder="logical expression, e.g. (a | b) & c"
-				/>
-			</label>
+			<div class="h-full w-1/6 py-4">
+				<label
+					class="flex h-full w-full flex-col gap-1 rounded-2xl p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
+				>
+					<span class="text-nowrap px-2 text-xs font-medium text-stone-400">logical expression</span
+					>
+					<input
+						bind:value={expression}
+						type="text"
+						class="h-6 w-full rounded-lg bg-transparent px-2 font-bold text-stone-900 duration-200 placeholder:text-stone-400 hover:bg-stone-900/5 focus:bg-stone-900/5"
+						placeholder="e.g. (a | b) & c"
+					/>
+				</label>
+			</div>
 			{#snippet recoverySelect(elementName: string, recoveryKind: RecoveryKind)}
 				<label class="flex h-full flex-col gap-1">
-					<span class="text-nowrap px-2 text-xs font-medium text-stone-400">
+					<span class="ml-2 text-nowrap text-xs font-medium text-stone-400">
 						{recoveryKind} rec.
 					</span>
 					<select
@@ -137,24 +140,29 @@
 			{/snippet}
 			{#snippet elementFieldset(name: string)}
 				<fieldset
-					class="group flex items-end gap-4 rounded-2xl bg-white/60 p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
+					class="flex items-end gap-4 rounded-2xl p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
 				>
 					<legend class="sr-only">{name}</legend>
-					<span aria-hidden="true" class="px-2 font-bold leading-6 text-stone-900">
+					<span aria-hidden="true" class="ml-2 font-bold leading-6 text-stone-900">
 						{name}
 					</span>
 					{@render recoverySelect(name, RecoveryKind.Software)}
 					{@render recoverySelect(name, RecoveryKind.Hardware)}
 				</fieldset>
 			{/snippet}
-			<fieldset class="flex flex-1 gap-3">
-				{#each getElementNamesFromTokens(tokenize(expression)) as elementName}
-					{@render elementFieldset(elementName)}
-				{/each}
-			</fieldset>
+			<div class="h-full flex-1 overflow-auto py-4">
+				<fieldset class="flex gap-5">
+					{#each getElementNamesFromTokens(tokenize(expression)) as elementName}
+						{@render elementFieldset(elementName)}
+					{/each}
+				</fieldset>
+			</div>
 		</form>
 	</section>
 	<section class="w-full flex-1">
 		<svg bind:this={svgElement} class="h-full w-full text-sm"></svg>
+		<div
+			class="pointer-events-none absolute left-0 top-0 h-full w-full bg-gradient-to-b from-white/95 to-transparent to-20%"
+		></div>
 	</section>
 </div>
