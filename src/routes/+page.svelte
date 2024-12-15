@@ -11,7 +11,7 @@
 	} from "$lib/utils";
 	import {
 		buildSystemStateNetwork,
-		RecoveryKind,
+		StateChangeKind,
 		type SystemElementConfig
 	} from "$lib/utils/network";
 	import { renderNetwork } from "$lib/utils/network-renderer";
@@ -44,7 +44,7 @@
 
 		setElementRecoveryCount(
 			elementName: string,
-			recoveryKind: RecoveryKind,
+			recoveryKind: StateChangeKind,
 			recoveryCount: number
 		) {
 			const prevElementConfig = this.#cachedValue.get(elementName) || {
@@ -95,7 +95,7 @@
 	$effect(() => {
 		if (svgElement == null || systemStateNetwork == null) return;
 
-		renderNetwork(svgElement, systemStateNetwork);
+		renderNetwork(svgElement, systemStateNetwork, operands);
 	});
 </script>
 
@@ -116,7 +116,7 @@
 					/>
 				</label>
 			</div>
-			{#snippet recoverySelect(elementName: string, recoveryKind: RecoveryKind)}
+			{#snippet recoverySelect(elementName: string, recoveryKind: StateChangeKind)}
 				<label class="flex h-full flex-col gap-1">
 					<span class="ml-2 text-nowrap text-xs font-medium text-stone-400">
 						{recoveryKind} rec.
@@ -146,8 +146,8 @@
 					<span aria-hidden="true" class="ml-2 font-bold leading-6 text-stone-900">
 						{name}
 					</span>
-					{@render recoverySelect(name, RecoveryKind.Software)}
-					{@render recoverySelect(name, RecoveryKind.Hardware)}
+					{@render recoverySelect(name, StateChangeKind.Software)}
+					{@render recoverySelect(name, StateChangeKind.Hardware)}
 				</fieldset>
 			{/snippet}
 			<div class="h-full flex-1 overflow-auto py-4">

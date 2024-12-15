@@ -1,21 +1,60 @@
 import * as d3 from "d3";
-import type { StateNetwork } from "./network";
+import {
+	EdgeKind,
+	NetworkNodeState,
+	StateChangeKind,
+	type ElementState,
+	type NetworkEdge,
+	type NetworkNode,
+	type RecoveryCounts,
+	type StateNetwork
+} from "./network";
 
-type Node = d3.SimulationNodeDatum & {
-	id: string;
-	state: string;
-};
+type Node = d3.SimulationNodeDatum & NetworkNode;
 
 type SimulatedNode = Node & {
 	x: number;
 	y: number;
 };
 
-type Link = d3.SimulationLinkDatum<Node> & {
-	kind: string;
-};
+type Link = d3.SimulationLinkDatum<Node> & NetworkEdge;
 
-export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetwork) {
+function formatRecoveryCounts(recoveryCounts: RecoveryCounts) {
+	return Array(recoveryCounts[StateChangeKind.Hardware] + recoveryCounts[StateChangeKind.Software])
+		.fill("*")
+		.join("");
+}
+
+function formatElementStates(elementStates: ElementState[]) {
+	return elementStates
+		.map(
+			(elementState) =>
+				(elementState.isActive ? "1" : "0") + formatRecoveryCounts(elementState.recoveryCounts)
+		)
+		.join("");
+}
+
+function formatLinkLabel({ kind, changedElement }: Link, operands: string[]) {
+	return (
+		(kind == EdgeKind.Failure ? "λ" : "μ") +
+		(changedElement.changeKind == StateChangeKind.Hardware ? "h" : "s") +
+		"(" +
+		operands[changedElement.index] +
+		")"
+	);
+}
+
+const colorByState = {
+	[NetworkNodeState.Active]: "#3b75af",
+	[NetworkNodeState.Recovery]: "#ef8636",
+	[NetworkNodeState.Terminal]: "#db2a2a"
+} satisfies Record<NetworkNodeState, string>;
+
+export function renderNetwork(
+	svgElement: SVGSVGElement,
+	stateNetwork: StateNetwork,
+	operands: string[]
+) {
 	d3.select(svgElement).selectAll("*").remove();
 
 	const width = svgElement.clientWidth;
@@ -29,15 +68,12 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 
 	const zoomContainer = svg.append("g");
 
-	const nodes: Node[] = stateNetwork.nodes.map((node) => ({
-		id: node.name,
-		state: node.state
-	}));
+	const nodes = stateNetwork.nodes as Node[];
 
-	const links: Link[] = stateNetwork.edges.map((edge) => ({
+	const links = stateNetwork.edges.map((edge) => ({
+		...edge,
 		source: edge.sourceNode.name,
-		target: edge.targetNode.name,
-		kind: edge.kind
+		target: edge.targetNode.name
 	}));
 
 	const kinds = Array.from(new Set(links.map((d) => d.kind)));
@@ -58,7 +94,7 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 			"link",
 			d3
 				.forceLink<Node, Link>(links)
-				.id((d) => d.id)
+				.id((d) => d.name)
 				.distance(() => 100)
 		)
 		.force("charge", d3.forceManyBody().strength(-5000))
@@ -97,11 +133,12 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 
 	linkLabelSelection
 		.append("text")
-		.attr("font-size", "10px")
-		.attr("fill", (d) => colors(d.kind))
+		.attr("font-size", "0.7rem")
+		.attr("font-weight", "bold")
+		.attr("fill", (link) => colors(link.kind))
 		.attr("text-anchor", "middle")
 		.attr("dy", "0.3em")
-		.text((d) => d.kind)
+		.text((link) => formatLinkLabel(link, operands))
 		.clone(true)
 		.lower()
 		.attr("fill", "none")
@@ -111,6 +148,8 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 	const nodeSelection = zoomContainer
 		.append("g")
 		.attr("fill", "currentColor")
+		.attr("font-size", "0.9rem")
+		.attr("font-weight", "bold")
 		.attr("stroke-linecap", "round")
 		.attr("stroke-linejoin", "round")
 		.selectAll<SVGGElement, Node>("g")
@@ -137,13 +176,18 @@ export function renderNetwork(svgElement: SVGSVGElement, stateNetwork: StateNetw
 				})
 		);
 
-	nodeSelection.append("circle").attr("stroke", "white").attr("stroke-width", 1.5).attr("r", 4);
+	nodeSelection
+		.append("circle")
+		.attr("stroke", "white")
+		.attr("stroke-width", 1.5)
+		.attr("r", 5)
+		.attr("fill", (node) => colorByState[node.state]);
 
 	nodeSelection
 		.append("text")
 		.attr("x", 8)
 		.attr("y", "0.3em")
-		.text((d) => `${d.id} (${d.state})`)
+		.text((d) => `${d.name} (${formatElementStates(d.elementsStates)})`)
 		.clone(true)
 		.lower()
 		.attr("fill", "none")

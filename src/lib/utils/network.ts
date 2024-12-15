@@ -9,16 +9,18 @@ import {
 	type SystemNode
 } from "./logical-expression-parser";
 
-export enum RecoveryKind {
+export enum StateChangeKind {
 	Software = "software",
 	Hardware = "hardware"
 }
 
+export type RecoveryCounts = {
+	[StateChangeKind.Software]: number;
+	[StateChangeKind.Hardware]: number;
+};
+
 export type SystemElementConfig = {
-	recoveryCounts: {
-		[RecoveryKind.Software]: number;
-		[RecoveryKind.Hardware]: number;
-	};
+	recoveryCounts: RecoveryCounts;
 };
 
 export type ElementState = SystemElementConfig & {
@@ -48,7 +50,7 @@ export enum EdgeKind {
 
 export type NetworkEdgeChangedElement = {
 	index: number;
-	changeKind: RecoveryKind;
+	changeKind: StateChangeKind;
 };
 
 export type NetworkEdge = {
@@ -132,12 +134,12 @@ function getSystemStateFromNode(
 			if (elem.state.isActive) {
 				return NetworkNodeState.Active;
 			} else if (
-				elem.state.recoveryCounts[RecoveryKind.Hardware] <
-					elem.recoveryCounts[RecoveryKind.Hardware] ||
-				elem.state.recoveryCounts[RecoveryKind.Hardware] == Infinity ||
-				elem.state.recoveryCounts[RecoveryKind.Software] <
-					elem.recoveryCounts[RecoveryKind.Software] ||
-				elem.state.recoveryCounts[RecoveryKind.Software] == Infinity
+				elem.state.recoveryCounts[StateChangeKind.Hardware] <
+					elem.recoveryCounts[StateChangeKind.Hardware] ||
+				elem.state.recoveryCounts[StateChangeKind.Hardware] == Infinity ||
+				elem.state.recoveryCounts[StateChangeKind.Software] <
+					elem.recoveryCounts[StateChangeKind.Software] ||
+				elem.state.recoveryCounts[StateChangeKind.Software] == Infinity
 			) {
 				return NetworkNodeState.Recovery;
 			} else {
@@ -221,21 +223,23 @@ function increment(elem: StatefullSystemElementNode) {
 	}
 
 	if (
-		elem.state.recoveryCounts[RecoveryKind.Hardware] < elem.recoveryCounts[RecoveryKind.Hardware] &&
-		elem.recoveryCounts[RecoveryKind.Hardware] != Infinity
+		elem.state.recoveryCounts[StateChangeKind.Hardware] <
+			elem.recoveryCounts[StateChangeKind.Hardware] &&
+		elem.recoveryCounts[StateChangeKind.Hardware] != Infinity
 	) {
 		elem.state.isActive = true;
-		elem.state.recoveryCounts[RecoveryKind.Hardware] += 1;
+		elem.state.recoveryCounts[StateChangeKind.Hardware] += 1;
 
 		return;
 	}
 
 	if (
-		elem.state.recoveryCounts[RecoveryKind.Software] < elem.recoveryCounts[RecoveryKind.Software] &&
-		elem.recoveryCounts[RecoveryKind.Software] != Infinity
+		elem.state.recoveryCounts[StateChangeKind.Software] <
+			elem.recoveryCounts[StateChangeKind.Software] &&
+		elem.recoveryCounts[StateChangeKind.Software] != Infinity
 	) {
 		elem.state.isActive = true;
-		elem.state.recoveryCounts[RecoveryKind.Software] += 1;
+		elem.state.recoveryCounts[StateChangeKind.Software] += 1;
 
 		return;
 	}
@@ -247,15 +251,17 @@ function canIncrement(elem: StatefullSystemElementNode): boolean {
 	}
 
 	if (
-		elem.state.recoveryCounts[RecoveryKind.Hardware] < elem.recoveryCounts[RecoveryKind.Hardware] &&
-		elem.recoveryCounts[RecoveryKind.Hardware] != Infinity
+		elem.state.recoveryCounts[StateChangeKind.Hardware] <
+			elem.recoveryCounts[StateChangeKind.Hardware] &&
+		elem.recoveryCounts[StateChangeKind.Hardware] != Infinity
 	) {
 		return true;
 	}
 
 	if (
-		elem.state.recoveryCounts[RecoveryKind.Software] < elem.recoveryCounts[RecoveryKind.Software] &&
-		elem.recoveryCounts[RecoveryKind.Software] != Infinity
+		elem.state.recoveryCounts[StateChangeKind.Software] <
+			elem.recoveryCounts[StateChangeKind.Software] &&
+		elem.recoveryCounts[StateChangeKind.Software] != Infinity
 	) {
 		return true;
 	}
@@ -335,15 +341,15 @@ function isSingleFailureBetweenNodes(
 		if (
 			sourceNode.elementsStates[i]!.isActive &&
 			!targetNode.elementsStates[i]!.isActive &&
-			sourceRecs[RecoveryKind.Hardware] == targetRecs[RecoveryKind.Hardware] &&
-			sourceRecs[RecoveryKind.Software] == targetRecs[RecoveryKind.Software]
+			sourceRecs[StateChangeKind.Hardware] == targetRecs[StateChangeKind.Hardware] &&
+			sourceRecs[StateChangeKind.Software] == targetRecs[StateChangeKind.Software]
 		) {
 			if (isSingleCorrectChange == undefined) {
 				// Incrementing algorithm always increments Hardware first.
 				const changeKind =
-					targetRecs[RecoveryKind.Hardware] == elems[i]!.recoveryCounts[RecoveryKind.Hardware]
-						? RecoveryKind.Software
-						: RecoveryKind.Hardware;
+					targetRecs[StateChangeKind.Hardware] == elems[i]!.recoveryCounts[StateChangeKind.Hardware]
+						? StateChangeKind.Software
+						: StateChangeKind.Hardware;
 				changedFailureElement = {
 					index: i,
 					changeKind: changeKind
@@ -354,17 +360,19 @@ function isSingleFailureBetweenNodes(
 			}
 
 			if (
-				(targetRecs[RecoveryKind.Hardware] == Infinity &&
-					targetRecs[RecoveryKind.Software] == elems[i]!.recoveryCounts[RecoveryKind.Software]) ||
-				(targetRecs[RecoveryKind.Software] == Infinity &&
-					targetRecs[RecoveryKind.Hardware] == elems[i]!.recoveryCounts[RecoveryKind.Hardware])
+				(targetRecs[StateChangeKind.Hardware] == Infinity &&
+					targetRecs[StateChangeKind.Software] ==
+						elems[i]!.recoveryCounts[StateChangeKind.Software]) ||
+				(targetRecs[StateChangeKind.Software] == Infinity &&
+					targetRecs[StateChangeKind.Hardware] ==
+						elems[i]!.recoveryCounts[StateChangeKind.Hardware])
 			) {
 				isFailureInfinitelyRecoverable = true;
 			}
 		} else if (
 			sourceNode.elementsStates[i]!.isActive == targetNode.elementsStates[i]!.isActive &&
-			sourceRecs[RecoveryKind.Hardware] == targetRecs[RecoveryKind.Hardware] &&
-			sourceRecs[RecoveryKind.Software] == targetRecs[RecoveryKind.Software]
+			sourceRecs[StateChangeKind.Hardware] == targetRecs[StateChangeKind.Hardware] &&
+			sourceRecs[StateChangeKind.Software] == targetRecs[StateChangeKind.Software]
 		) {
 			continue;
 		} else {
@@ -404,16 +412,16 @@ function isSingleRecoveryBetweenNodes(
 		if (
 			!sourceNode.elementsStates[i]!.isActive &&
 			targetNode.elementsStates[i]!.isActive &&
-			((targetRecs[RecoveryKind.Hardware] - sourceRecs[RecoveryKind.Hardware] == 1 &&
-				targetRecs[RecoveryKind.Software] == sourceRecs[RecoveryKind.Software]) ||
-				(targetRecs[RecoveryKind.Software] - sourceRecs[RecoveryKind.Software] == 1 &&
-					targetRecs[RecoveryKind.Hardware] == sourceRecs[RecoveryKind.Hardware]))
+			((targetRecs[StateChangeKind.Hardware] - sourceRecs[StateChangeKind.Hardware] == 1 &&
+				targetRecs[StateChangeKind.Software] == sourceRecs[StateChangeKind.Software]) ||
+				(targetRecs[StateChangeKind.Software] - sourceRecs[StateChangeKind.Software] == 1 &&
+					targetRecs[StateChangeKind.Hardware] == sourceRecs[StateChangeKind.Hardware]))
 		) {
 			if (isSingleCorrectChange == undefined) {
 				const changeKind =
-					targetRecs[RecoveryKind.Hardware] - sourceRecs[RecoveryKind.Hardware] == 1
-						? RecoveryKind.Hardware
-						: RecoveryKind.Software;
+					targetRecs[StateChangeKind.Hardware] - sourceRecs[StateChangeKind.Hardware] == 1
+						? StateChangeKind.Hardware
+						: StateChangeKind.Software;
 				changedRecoveryElement = {
 					index: i,
 					changeKind: changeKind
@@ -427,8 +435,8 @@ function isSingleRecoveryBetweenNodes(
 			}
 		} else if (
 			sourceNode.elementsStates[i]!.isActive == targetNode.elementsStates[i]!.isActive &&
-			sourceRecs[RecoveryKind.Hardware] == targetRecs[RecoveryKind.Hardware] &&
-			sourceRecs[RecoveryKind.Software] == targetRecs[RecoveryKind.Software]
+			sourceRecs[StateChangeKind.Hardware] == targetRecs[StateChangeKind.Hardware] &&
+			sourceRecs[StateChangeKind.Software] == targetRecs[StateChangeKind.Software]
 		) {
 			continue;
 		} else {
