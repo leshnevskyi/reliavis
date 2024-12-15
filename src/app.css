@@ -2,9 +2,13 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+input,
 input:focus,
+select,
 select:focus,
+textarea,
 textarea:focus,
+button,
 button:focus {
 	@apply outline-none;
 }

@@ -100,55 +100,58 @@
 </script>
 
 <div class="flex h-screen flex-col">
-	<section class="flex w-full flex-col items-center gap-2 p-6">
-		<input
-			bind:value={expression}
-			type="text"
-			class:bg-red-100={!expressionIsValid}
-			class="w-2/3 border-b border-b-neutral-400 py-1 text-center"
-			placeholder="logical expression, e.g. (a | b) & c"
-		/>
-		<form class="w-4/12 min-w-96 flex-col">
+	<section class="fixed m-6 flex w-full items-center gap-2">
+		<form class="flex w-full gap-5">
+			<label
+				class="group flex h-full w-1/6 flex-col gap-1 rounded-2xl bg-white/60 p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
+			>
+				<span class="text-nowrap px-2 text-xs font-medium text-stone-400">logical expression</span>
+				<input
+					bind:value={expression}
+					type="text"
+					class="h-6 w-full rounded-lg bg-transparent px-2 font-bold text-stone-900 duration-200 hover:bg-stone-900/5 focus:bg-stone-900/5"
+					placeholder="logical expression, e.g. (a | b) & c"
+				/>
+			</label>
 			{#snippet recoverySelect(elementName: string, recoveryKind: RecoveryKind)}
-				<select
-					name={`${recoveryKind}-recoveries`}
-					class="py-1"
-					value={elementConfigStore.getConfigByElementName(elementName)?.recoveryCounts[
-						recoveryKind
-					]}
-					onchange={(event) => {
-						const recoveryCount = Number(event.currentTarget.value);
-						elementConfigStore.setElementRecoveryCount(elementName, recoveryKind, recoveryCount);
-					}}
-				>
-					{#each [...Array(4).keys(), Infinity] as number}
-						<option value={number}>{number}</option>
-					{/each}
-				</select>
-			{/snippet}
-			<table class="w-full">
-				<thead>
-					<tr>
-						{#each ["Element", "Software Recoveries", "Hardware Recoveries"] as header, index}
-							<th class="text-start text-xs" {...index == 0 && { style: "width: 25%" }}>{header}</th
-							>
+				<label class="flex h-full flex-col gap-1">
+					<span class="text-nowrap px-2 text-xs font-medium text-stone-400">
+						{recoveryKind} rec.
+					</span>
+					<select
+						name={`${recoveryKind}-recoveries`}
+						class="h-6 rounded-lg bg-transparent px-1 py-0.5 text-sm font-medium text-stone-900 duration-200 hover:bg-stone-900/5 focus:bg-stone-900/5"
+						value={elementConfigStore.getConfigByElementName(elementName)?.recoveryCounts[
+							recoveryKind
+						]}
+						onchange={(event) => {
+							const recoveryCount = Number(event.currentTarget.value);
+							elementConfigStore.setElementRecoveryCount(elementName, recoveryKind, recoveryCount);
+						}}
+					>
+						{#each [...Array(4).keys(), Infinity] as number}
+							<option value={number}>{number}</option>
 						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#each getElementNamesFromTokens(tokenize(expression)) as elementName}
-						<tr>
-							<td class="py-1">{elementName}</td>
-							<td>
-								{@render recoverySelect(elementName, RecoveryKind.Software)}
-							</td>
-							<td>
-								{@render recoverySelect(elementName, RecoveryKind.Hardware)}
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</select>
+				</label>
+			{/snippet}
+			{#snippet elementFieldset(name: string)}
+				<fieldset
+					class="group flex items-end gap-4 rounded-2xl bg-white/60 p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
+				>
+					<legend class="sr-only">{name}</legend>
+					<span aria-hidden="true" class="px-2 font-bold leading-6 text-stone-900">
+						{name}
+					</span>
+					{@render recoverySelect(name, RecoveryKind.Software)}
+					{@render recoverySelect(name, RecoveryKind.Hardware)}
+				</fieldset>
+			{/snippet}
+			<fieldset class="flex flex-1 gap-3">
+				{#each getElementNamesFromTokens(tokenize(expression)) as elementName}
+					{@render elementFieldset(elementName)}
+				{/each}
+			</fieldset>
 		</form>
 	</section>
 	<section class="w-full flex-1">
