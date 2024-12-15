@@ -69,7 +69,7 @@
 
 			if (!operandsAreUnique || !operandsAreAlphanumeric) return null;
 
-			const ast = postfixToAst(toPostfix([...removeSpaces(expression)]));
+			const ast = postfixToAst(toPostfix(tokenize(removeSpaces(expression))));
 			const systemNode = astNodeToSystemNode(ast, elementConfigStore.value);
 
 			if (!isValidSystemRootNode(systemNode)) throw new Error("No root node found in AST.");
