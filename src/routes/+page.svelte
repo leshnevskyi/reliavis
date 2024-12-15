@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { twMerge } from "tailwind-merge";
+
 	import {
 		astNodeToSystemNode,
 		getElementNamesFromTokens,
@@ -17,6 +19,7 @@
 	import { renderNetwork } from "$lib/utils/network-renderer";
 
 	let expression = $state("(a | b) & c");
+	let expressionIsEmpty = $derived(expression.trim() == "");
 	let operands = $derived(tokenize(expression).filter((token) => isOperandToken(token)));
 
 	class ElementConfigStore {
@@ -111,7 +114,10 @@
 					<input
 						bind:value={expression}
 						type="text"
-						class="h-6 w-full rounded-lg bg-transparent px-2 font-bold text-stone-900 duration-200 placeholder:text-stone-400 hover:bg-stone-900/5 focus:bg-stone-900/5"
+						class={twMerge(
+							"h-6 w-full rounded-lg bg-transparent px-2 font-bold text-stone-900 duration-200 placeholder:text-stone-400 hover:bg-stone-900/5 focus:bg-stone-900/5",
+							!expressionIsValid && !expressionIsEmpty && "text-red-600"
+						)}
 						placeholder="e.g. (a | b) & c"
 					/>
 				</label>
@@ -160,7 +166,13 @@
 		</form>
 	</section>
 	<section class="w-full flex-1">
-		<svg bind:this={svgElement} class="h-full w-full text-sm"></svg>
+		<svg
+			bind:this={svgElement}
+			class={twMerge(
+				"h-full w-full text-sm duration-200",
+				!expressionIsValid && "opacity-30 grayscale"
+			)}
+		></svg>
 		<div
 			class="pointer-events-none absolute left-0 top-0 h-full w-full bg-gradient-to-b from-white/95 to-transparent to-20%"
 		></div>
