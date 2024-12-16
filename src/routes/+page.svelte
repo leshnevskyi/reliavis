@@ -103,24 +103,29 @@
 </script>
 
 <div class="flex h-screen flex-col">
-	<section class="fixed z-10 flex w-full items-center gap-2 px-6 py-4">
-		<form class="flex w-full gap-5">
-			<div class="h-full w-1/6 py-4">
-				<label
-					class="flex h-full w-full flex-col gap-1 rounded-2xl p-2 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
+	<section class="fixed z-10 flex w-full items-center gap-2 py-1">
+		<form class="flex w-full flex-col-reverse">
+			<div class="self-start px-4">
+				<div
+					class="flex gap-1.5 rounded-2xl bg-white/50 p-2 pl-4 shadow-md shadow-stone-900/5 backdrop-blur-md duration-200"
 				>
-					<span class="text-nowrap px-2 text-xs font-medium text-stone-400">logical expression</span
-					>
-					<input
-						bind:value={expression}
-						type="text"
+					<span class="text-nowrap text-base text-stone-400">logical expression</span>
+					<span
+						bind:textContent={expression}
+						oninput={(event) => {
+							if (!event.currentTarget.textContent) {
+								event.currentTarget.innerHTML = "";
+							}
+						}}
+						role="textbox"
+						contenteditable="true"
 						class={twMerge(
-							"h-6 w-full rounded-lg bg-transparent px-2 font-bold text-stone-900 duration-200 placeholder:text-stone-400 hover:bg-stone-900/5 focus:bg-stone-900/5",
+							"min-w-32 rounded-lg bg-transparent px-2.5 font-bold text-stone-900 duration-200 placeholder:text-stone-400 hover:bg-stone-900/5 focus:bg-stone-900/5",
 							!expressionIsValid && !expressionIsEmpty && "text-red-600"
 						)}
-						placeholder="e.g. (a | b) & c"
-					/>
-				</label>
+						data-placeholder="e.g., (a | b) & c"
+					></span>
+				</div>
 			</div>
 			{#snippet recoverySelect(elementName: string, recoveryKind: StateChangeKind)}
 				<label class="flex h-full flex-col gap-1">
@@ -129,7 +134,7 @@
 					</span>
 					<select
 						name={`${recoveryKind}-recoveries`}
-						class="h-6 rounded-lg bg-transparent px-1 py-0.5 text-sm font-medium text-stone-900 duration-200 hover:bg-stone-900/5 focus:bg-stone-900/5"
+						class="rounded-lg bg-transparent px-1 py-0.5 text-sm font-medium text-stone-900 duration-200 hover:bg-stone-900/5 focus:bg-stone-900/5"
 						value={elementConfigStore.getConfigByElementName(elementName)?.recoveryCounts[
 							recoveryKind
 						]}
@@ -156,8 +161,8 @@
 					{@render recoverySelect(name, StateChangeKind.Hardware)}
 				</fieldset>
 			{/snippet}
-			<div class="h-full flex-1 overflow-auto py-4">
-				<fieldset class="flex gap-5">
+			<div class="h-full flex-1 overflow-auto px-4 py-2">
+				<fieldset class="flex gap-2">
 					{#each getElementNamesFromTokens(tokenize(expression)) as elementName}
 						{@render elementFieldset(elementName)}
 					{/each}
@@ -174,7 +179,7 @@
 			)}
 		></svg>
 		<div
-			class="pointer-events-none absolute left-0 top-0 h-full w-full bg-gradient-to-b from-white/95 to-transparent to-20%"
+			class="pointer-events-none absolute left-0 top-0 h-full w-full bg-gradient-to-b from-white/90 from-5% to-transparent to-25%"
 		></div>
 	</section>
 </div>

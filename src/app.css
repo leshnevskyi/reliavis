@@ -9,10 +9,21 @@ select:focus,
 textarea,
 textarea:focus,
 button,
-button:focus {
+button:focus,
+[contenteditable="true"],
+[contenteditable="true"]:focus {
 	@apply outline-none;
 }
 
 table {
 	@apply border-collapse;
+}
+
+[contenteditable="true"]:empty:not(:focus)::before {
+	content: attr(data-placeholder);
+	color: theme("colors.stone.400");
+}
+
+* {
+	scrollbar-width: thin;
 }
