@@ -19,10 +19,12 @@ type SimulatedNode = Node & {
 
 type Link = d3.SimulationLinkDatum<Node> & NetworkEdge;
 
-function formatRecoveryCounts(recoveryCounts: RecoveryCounts) {
-	return Array(recoveryCounts[StateChangeKind.Hardware] + recoveryCounts[StateChangeKind.Software])
-		.fill("*")
-		.join("");
+function zeroIfInfinity(value: number) {
+	return isFinite(value) ? value : 0;
+}
+
+function formatRecoveryCounts({ hardware: hwCount, software: swCount }: RecoveryCounts) {
+	return "*".repeat(zeroIfInfinity(swCount)) + "^".repeat(zeroIfInfinity(hwCount));
 }
 
 function formatElementStates(elementStates: ElementState[]) {
