@@ -19,7 +19,7 @@ table {
 	@apply border-collapse;
 }
 
-[contenteditable="true"]:empty:not(:focus)::before {
+[contenteditable="true"]:empty::before {
 	content: attr(data-placeholder);
 	color: theme("colors.stone.400");
 }

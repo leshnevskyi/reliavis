@@ -207,6 +207,6 @@ export function postfixToAst(postfixTokens: Token[]) {
 	return root;
 }
 
-export function getElementNamesFromTokens(tokens: Token[]) {
-	return tokens.filter((token) => !isOperatorToken(token) && !isGroupToken(token));
+export function getOperandsFromTokens(tokens: Token[]) {
+	return tokens.filter((token) => isOperandToken(token));
 }

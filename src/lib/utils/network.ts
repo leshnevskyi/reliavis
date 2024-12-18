@@ -20,7 +20,10 @@ export type RecoveryCounts = {
 };
 
 export type SystemElementConfig = {
-	recoveryCounts: RecoveryCounts;
+	recoveryCounts:
+		| RecoveryCounts
+		| Pick<RecoveryCounts, StateChangeKind.Software>
+		| Pick<RecoveryCounts, StateChangeKind.Hardware>;
 };
 
 export type ElementState = SystemElementConfig & {
