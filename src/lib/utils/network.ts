@@ -1,5 +1,4 @@
 import { clone } from "remeda";
-import { v4 as uuidv4 } from "uuid";
 
 import {
     AstNodeKind,
@@ -138,7 +137,6 @@ export function buildSystemStateNetwork(systemRootNode: SystemConnectionNode) {
             const newEdges = edgesBetweenNodes(
                 systemState.nodes[i]!,
                 systemState.nodes[j]!,
-                elementsState,
             );
             systemState.edges.push(...newEdges);
         }
@@ -378,6 +376,7 @@ function processElementsLevel(
                             .recoveryStates as RecoveryStates)[
                                 StateChangeKind.Hardware
                             ],
+                        hardwareRecoveryCounts,
                         StateChangeKind.Hardware,
                     );
 
@@ -409,6 +408,7 @@ function processElementsLevel(
                             .recoveryStates as RecoveryStates)[
                                 StateChangeKind.Software
                             ],
+                        softwareRecoveryCounts,
                         StateChangeKind.Software,
                     );
 
@@ -493,82 +493,31 @@ function saveNewNode(
     nodeIdx.value += 1;
 }
 
-//function tryIncrementElement(elem: StatefullSystemElementNode): IncrementChangeKind | undefined {
-//	const hardwareRecoveryCounts =
-//		StateChangeKind.Hardware in elem.recoveryCounts
-//			? elem.recoveryCounts[StateChangeKind.Hardware]
-//			: undefined;
-//	const hardwareState =
-//		StateChangeKind.Hardware in elem.recoveryStates
-//			? elem.recoveryStates[StateChangeKind.Hardware]
-//			: undefined;
-//
-//	const softwareRecoveryCounts =
-//		StateChangeKind.Software in elem.recoveryCounts
-//			? elem.recoveryCounts[StateChangeKind.Software]
-//			: undefined;
-//	const softwareState =
-//		StateChangeKind.Software in elem.recoveryStates
-//			? elem.recoveryStates[StateChangeKind.Software]
-//			: undefined;
-//
-//	if (
-//		hardwareState !== undefined &&
-//		hardwareRecoveryCounts !== undefined &&
-//		softwareState !== undefined &&
-//		softwareRecoveryCounts !== undefined
-//	) {
-//		if (hardwareState.isActive && softwareState.isActive) {
-//			const hardwareIncrement = tryIncrementForKind(
-//				hardwareState,
-//				hardwareRecoveryCounts,
-//				StateChangeKind.Hardware
-//			);
-//
-//			if (hardwareIncrement !== undefined) {
-//				return hardwareIncrement;
-//			} else {
-//				// TODO: add further steps
-//				return undefined;
-//			}
-//		} else if (!hardwareState.isActive) {
-//			return tryRecoverForKind(hardwareState, hardwareRecoveryCounts, StateChangeKind.Hardware);
-//		} else if (!softwareState.isActive) {
-//			return tryRecoverForKind(softwareState, softwareRecoveryCounts, StateChangeKind.Software);
-//		}
-//	} else if (hardwareState !== undefined && hardwareRecoveryCounts !== undefined) {
-//		return tryIncrementForKind(hardwareState, hardwareRecoveryCounts, StateChangeKind.Hardware);
-//	} else if (softwareState !== undefined && softwareRecoveryCounts !== undefined) {
-//		return tryIncrementForKind(softwareState, softwareRecoveryCounts, StateChangeKind.Software);
-//	}
-//
-//	return undefined;
-//}
-
 function tryIncrementForKind(
     state: RecoveryState,
     recCount: number,
     kind: StateChangeKind,
 ): IncrementChangeKind | undefined {
-    return tryFailForKind(state, kind) ||
+    return tryFailForKind(state, recCount, kind) ||
         tryRecoverForKind(state, recCount, kind);
 }
 
 function tryFailForKind(
     state: RecoveryState,
+    recCount: number,
     kind: StateChangeKind,
 ): IncrementChangeKind | undefined {
     if (state.isActive) {
         state.isActive = false;
-        if (state.count !== Infinity) {
-            return kind == StateChangeKind.Software
-                ? IncrementFailureKind.Software
-                : IncrementFailureKind.Hardware;
-        } else {
+        if (recCount === Infinity) {
             state.count = Infinity;
             return kind == StateChangeKind.Software
                 ? IncrementFailureKind.SoftwareInfinite
                 : IncrementFailureKind.HardwareInfinite;
+        } else {
+            return kind == StateChangeKind.Software
+                ? IncrementFailureKind.Software
+                : IncrementFailureKind.Hardware;
         }
     }
 
@@ -592,189 +541,50 @@ function tryRecoverForKind(
 }
 
 function canRecover(state: RecoveryState, recCount: number): boolean {
-    return state.count < recCount && recCount !== Infinity;
+    return (state.count < recCount) && (recCount !== Infinity);
 }
-
-// --------------------------------
-//function processElementsNew(
-//	checkSystemState: CheckSystemState,
-//	elems: StatefullSystemElementNode[]
-//): { nodes: NetworkNode[]; edges: NetworkEdge[] } {
-//	const rootNode = {
-//		name: uuidv4(),
-//		state: checkSystemState(elems),
-//		elementsStates: elems.map((elem) => clone(elem))
-//	} satisfies NetworkNode;
-//
-//	const { nodes, edges } = processElementsLevel(checkSystemState, elems, rootNode, 0);
-//	nodes.unshift(rootNode);
-//
-//	return { nodes: nodes, edges: edges };
-//}
-//
-//function processElementsLevel(
-//	checkSystemState: CheckSystemState,
-//	elems: StatefullSystemElementNode[],
-//	rootNode: NetworkNode,
-//	elemIdx: number
-//): { nodes: NetworkNode[]; edges: NetworkEdge[] } {
-//	const allNodes: NetworkNode[] = [];
-//	const allEdges: NetworkEdge[] = [];
-//	let lastNode = rootNode;
-//
-//	while (true) {
-//		if (elemIdx + 1 < elems.length) {
-//			const { nodes, edges } = processElementsLevel(
-//				checkSystemState,
-//				elems.map((elem) => clone<StatefullSystemElementNode>(elem)),
-//				lastNode,
-//				elemIdx + 1
-//			);
-//
-//			allNodes.push(...nodes);
-//			allEdges.push(...edges);
-//		}
-//
-//		const incrementResult = tryIncrementElement(elems[elemIdx]!);
-//
-//		if (incrementResult === undefined) {
-//			break;
-//		}
-//
-//		const node = {
-//			name: uuidv4(),
-//			state: checkSystemState(elems),
-//			elementsStates: elems.map((elem) => clone(elem))
-//		} satisfies NetworkNode;
-//
-//		allNodes.push(node);
-//		const changeKind =
-//			incrementResult == IncrementFailureKind.Software ||
-//			incrementResult == IncrementFailureKind.SoftwareInfinite ||
-//			incrementResult == IncrementRecoveryKind.Software
-//				? StateChangeKind.Software
-//				: StateChangeKind.Hardware;
-//		const changedElement: NetworkEdgeChangedElement = {
-//			index: elemIdx,
-//			changeKind: changeKind
-//		};
-//
-//		allEdges.push({
-//			kind: (incrementResult as IncrementRecoveryKind) ? EdgeKind.Recovery : EdgeKind.Failure,
-//			sourceNode: rootNode,
-//			targetNode: node,
-//			changedElement: changedElement
-//		} satisfies NetworkEdge);
-//
-//		if (
-//			incrementResult == IncrementFailureKind.SoftwareInfinite ||
-//			incrementResult == IncrementFailureKind.HardwareInfinite
-//		) {
-//			allEdges.push({
-//				kind: EdgeKind.Recovery,
-//				sourceNode: node,
-//				targetNode: rootNode,
-//				changedElement: changedElement
-//			} satisfies NetworkEdge);
-//		}
-//		lastNode = node;
-//	}
-//
-//	return { nodes: allNodes, edges: allEdges };
-//}
-// -----------------
-//
-//function increment(elem: StatefullSystemElementNode): IncrementChangeKind {
-//    if (elem.state.isActive) {
-//        elem.state.isActive = false;
-//
-//        if (canIncrementHardware(elem)) {
-//            return StateChangeKind.Hardware;
-//        }
-//
-//        //        return;
-//    }
-//
-//    if (
-//        elem.recoveryStates[StateChangeKind.Hardware] <
-//            elem.recoveryCounts[StateChangeKind.Hardware] &&
-//        elem.recoveryCounts[StateChangeKind.Hardware] != Infinity
-//    ) {
-//        elem.state.isActive = true;
-//        elem.recoveryStates[StateChangeKind.Hardware] += 1;
-//
-//        return;
-//    }
-//
-//    if (
-//        elem.recoveryStates[StateChangeKind.Software] <
-//            elem.recoveryCounts[StateChangeKind.Software] &&
-//        elem.recoveryCounts[StateChangeKind.Software] != Infinity
-//    ) {
-//        elem.state.isActive = true;
-//        elem.recoveryStates[StateChangeKind.Software] += 1;
-//
-//        return;
-//    }
-//}
-//
-//function canIncrement(elem: StatefullSystemElementNode): boolean {
-//    return elem.state.isActive || canIncrementHardware(elem) ||
-//        canIncrementSoftware(elem);
-//}
-//
-//function canIncrementHardware(elem: StatefullSystemElementNode): boolean {
-//    return StateChangeKind.Hardware in elem.recoveryStates &&
-//        StateChangeKind.Hardware in elem.recoveryCounts &&
-//        elem.recoveryStates[StateChangeKind.Hardware].count <
-//            elem.recoveryCounts[StateChangeKind.Hardware].count &&
-//        elem.recoveryCounts[StateChangeKind.Hardware].count !== Infinity;
-//}
-//
-//function canIncrementSoftware(elem: StatefullSystemElementNode): boolean {
-//    return StateChangeKind.Software in elem.recoveryStates &&
-//        StateChangeKind.Software in elem.recoveryCounts &&
-//        elem.recoveryStates[StateChangeKind.Software].count <
-//            elem.recoveryCounts[StateChangeKind.Software].count &&
-//        elem.recoveryCounts[StateChangeKind.Software].count !== Infinity;
-//}
 
 function edgesBetweenNodes(
     sourceNode: NetworkNode,
     targetNode: NetworkNode,
-    elems: StatefullSystemElementNode[],
 ): NetworkEdge[] {
-    const { isSingleFailure, infinitelyRecoverable, changedFailureElement } =
-        isSingleFailureBetweenNodes(sourceNode, targetNode, elems);
-    const { isSingleRecovery, changedRecoveryElement } =
-        isSingleRecoveryBetweenNodes(
-            sourceNode,
-            targetNode,
-        );
+    const changeKind = targetNode.changeKind == IncrementFailureKind.Software ||
+            targetNode.changeKind ==
+                IncrementFailureKind.SoftwareInfinite ||
+            targetNode.changeKind == IncrementRecoveryKind.Software
+        ? StateChangeKind.Software
+        : StateChangeKind.Hardware;
+    const { isSingleFailure, failedElementIndex } = isSingleFailureBetweenNodes(
+        sourceNode,
+        targetNode,
+    );
 
     if (isSingleFailure) {
         const edges: NetworkEdge[] = [];
-
-        if (isSingleRecovery) {
-            return edges;
-        }
+        const changedElement: NetworkEdgeChangedElement = {
+            index: failedElementIndex,
+            changeKind: changeKind,
+        };
 
         edges.push(
             {
                 kind: EdgeKind.Failure,
                 sourceNode: sourceNode,
                 targetNode: targetNode,
-                changedElement: changedFailureElement!,
+                changedElement: changedElement,
             } satisfies NetworkEdge,
         );
 
-        if (infinitelyRecoverable) {
+        if (
+            targetNode.changeKind == IncrementFailureKind.SoftwareInfinite ||
+            targetNode.changeKind == IncrementFailureKind.HardwareInfinite
+        ) {
             edges.push(
                 {
                     kind: EdgeKind.Recovery,
                     sourceNode: targetNode,
                     targetNode: sourceNode,
-                    changedElement: changedFailureElement!,
+                    changedElement: changedElement,
                 } satisfies NetworkEdge,
             );
         }
@@ -782,13 +592,24 @@ function edgesBetweenNodes(
         return edges;
     }
 
+    const { isSingleRecovery, recoveredElementIndex } =
+        isSingleRecoveryBetweenNodes(
+            sourceNode,
+            targetNode,
+        );
+
     if (isSingleRecovery) {
+        const changedElement: NetworkEdgeChangedElement = {
+            index: recoveredElementIndex,
+            changeKind: changeKind,
+        };
+
         return [
             {
                 kind: EdgeKind.Recovery,
                 sourceNode: sourceNode,
                 targetNode: targetNode,
-                changedElement: changedRecoveryElement!,
+                changedElement: changedElement,
             } satisfies NetworkEdge,
         ];
     }
@@ -799,80 +620,128 @@ function edgesBetweenNodes(
 function isSingleFailureBetweenNodes(
     sourceNode: NetworkNode,
     targetNode: NetworkNode,
-    elems: StatefullSystemElementNode[],
-): {
-    isSingleFailure: boolean;
-    infinitelyRecoverable: boolean;
-    changedFailureElement: NetworkEdgeChangedElement | undefined;
-} {
+): { isSingleFailure: boolean; failedElementIndex: number } {
     let isSingleCorrectChange: boolean | undefined = undefined;
-    let isFailureInfinitelyRecoverable = false;
-    let changedFailureElement: NetworkEdgeChangedElement | undefined =
-        undefined;
+    let elementIndex: number = Infinity;
 
     for (let i = 0; i < sourceNode.elementsStates.length; i++) {
-        const sourceRecs = sourceNode.elementsStates[i]!.recoveryCounts;
-        const targetRecs = targetNode.elementsStates[i]!.recoveryCounts;
+        const sourceHardwareState = StateChangeKind.Hardware in
+                sourceNode.elementsStates[i]!.recoveryStates
+            ? (sourceNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Hardware
+            ]
+            : undefined;
+        const sourceSoftwareState = StateChangeKind.Software in
+                sourceNode.elementsStates[i]!.recoveryStates
+            ? (sourceNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Software
+            ]
+            : undefined;
+
+        const targetHardwareState = StateChangeKind.Hardware in
+                targetNode.elementsStates[i]!.recoveryStates
+            ? (targetNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Hardware
+            ]
+            : undefined;
+        const targetSoftwareState = StateChangeKind.Software in
+                targetNode.elementsStates[i]!.recoveryStates
+            ? (targetNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Software
+            ]
+            : undefined;
+
+        const isEqualCounts = equalCountsOrTargetUndefined(
+            sourceHardwareState,
+            targetHardwareState,
+        ) && equalCountsOrTargetUndefined(
+            sourceSoftwareState,
+            targetSoftwareState,
+        );
 
         if (
-            sourceNode.elementsStates[i]!.isActive &&
-            !targetNode.elementsStates[i]!.isActive &&
-            sourceRecs[StateChangeKind.Hardware] ==
-                targetRecs[StateChangeKind.Hardware] &&
-            sourceRecs[StateChangeKind.Software] ==
-                targetRecs[StateChangeKind.Software]
-        ) {
-            if (isSingleCorrectChange == undefined) {
-                // Incrementing algorithm always increments Hardware first.
-                const changeKind = targetRecs[StateChangeKind.Hardware] ==
-                        elems[i]!.recoveryCounts[StateChangeKind.Hardware]
-                    ? StateChangeKind.Software
-                    : StateChangeKind.Hardware;
-                changedFailureElement = {
-                    index: i,
-                    changeKind: changeKind,
-                };
-                isSingleCorrectChange = true;
-            } else {
-                isSingleCorrectChange = false;
-            }
-
-            if (
-                (targetRecs[StateChangeKind.Hardware] == Infinity &&
-                    targetRecs[StateChangeKind.Software] ==
-                        elems[i]!.recoveryCounts[StateChangeKind.Software]) ||
-                (targetRecs[StateChangeKind.Software] == Infinity &&
-                    targetRecs[StateChangeKind.Hardware] ==
-                        elems[i]!.recoveryCounts[StateChangeKind.Hardware])
-            ) {
-                isFailureInfinitelyRecoverable = true;
-            }
-        } else if (
-            sourceNode.elementsStates[i]!.isActive ==
-                targetNode.elementsStates[i]!.isActive &&
-            sourceRecs[StateChangeKind.Hardware] ==
-                targetRecs[StateChangeKind.Hardware] &&
-            sourceRecs[StateChangeKind.Software] ==
-                targetRecs[StateChangeKind.Software]
+            equalStatesOrTargetUndefined(
+                sourceHardwareState,
+                targetHardwareState,
+            ) &&
+            equalStatesOrTargetUndefined(
+                sourceSoftwareState,
+                targetSoftwareState,
+            ) &&
+            isEqualCounts
         ) {
             continue;
+        } else if (
+            (
+                (
+                    equalStatesOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    ) &&
+                    equalCountsOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    ) &&
+                    stateBecomeInactiveOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    ) &&
+                    (
+                        equalCountsOrTargetUndefined(
+                            sourceSoftwareState,
+                            targetSoftwareState,
+                        ) ||
+                        countBecomeInfiniteOrTargetUndefined(
+                            sourceSoftwareState,
+                            targetSoftwareState,
+                        )
+                    )
+                ) ||
+                (
+                    equalStatesOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    ) &&
+                    equalCountsOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    ) &&
+                    stateBecomeInactiveOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    ) &&
+                    (
+                        equalCountsOrTargetUndefined(
+                            sourceHardwareState,
+                            targetHardwareState,
+                        ) ||
+                        countBecomeInfiniteOrTargetUndefined(
+                            sourceHardwareState,
+                            targetHardwareState,
+                        )
+                    )
+                )
+            )
+        ) {
+            if (isSingleCorrectChange == undefined) {
+                isSingleCorrectChange = true;
+                elementIndex = i;
+            } else {
+                isSingleCorrectChange = false;
+                elementIndex = Infinity;
+            }
         } else {
             isSingleCorrectChange = false;
         }
 
         if (isSingleCorrectChange == false) {
-            return {
-                isSingleFailure: false,
-                infinitelyRecoverable: false,
-                changedFailureElement: changedFailureElement,
-            };
+            return { isSingleFailure: false, failedElementIndex: Infinity };
         }
     }
 
     return {
         isSingleFailure: isSingleCorrectChange == true,
-        infinitelyRecoverable: isFailureInfinitelyRecoverable,
-        changedFailureElement: changedFailureElement,
+        failedElementIndex: elementIndex,
     };
 }
 
@@ -881,53 +750,104 @@ function isSingleRecoveryBetweenNodes(
     targetNode: NetworkNode,
 ): {
     isSingleRecovery: boolean;
-    changedRecoveryElement: NetworkEdgeChangedElement | undefined;
+    recoveredElementIndex: number;
 } {
     let isSingleCorrectChange: boolean | undefined = undefined;
-    let changedRecoveryElement: NetworkEdgeChangedElement | undefined =
-        undefined;
+    let elementIndex: number = Infinity;
 
     for (let i = 0; i < sourceNode.elementsStates.length; i++) {
-        const sourceRecs = sourceNode.elementsStates[i]!.recoveryCounts;
-        const targetRecs = targetNode.elementsStates[i]!.recoveryCounts;
+        const sourceHardwareState = StateChangeKind.Hardware in
+                sourceNode.elementsStates[i]!.recoveryStates
+            ? (sourceNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Hardware
+            ]
+            : undefined;
+        const sourceSoftwareState = StateChangeKind.Software in
+                sourceNode.elementsStates[i]!.recoveryStates
+            ? (sourceNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Software
+            ]
+            : undefined;
+
+        const targetHardwareState = StateChangeKind.Hardware in
+                targetNode.elementsStates[i]!.recoveryStates
+            ? (targetNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Hardware
+            ]
+            : undefined;
+        const targetSoftwareState = StateChangeKind.Software in
+                targetNode.elementsStates[i]!.recoveryStates
+            ? (targetNode.elementsStates[i]!.recoveryStates as RecoveryStates)[
+                StateChangeKind.Software
+            ]
+            : undefined;
+        const isEqualCounts = equalCountsOrTargetUndefined(
+            sourceHardwareState,
+            targetHardwareState,
+        ) && equalCountsOrTargetUndefined(
+            sourceSoftwareState,
+            targetSoftwareState,
+        );
 
         if (
-            !sourceNode.elementsStates[i]!.isActive &&
-            targetNode.elementsStates[i]!.isActive &&
-            ((targetRecs[StateChangeKind.Hardware] -
-                            sourceRecs[StateChangeKind.Hardware] == 1 &&
-                targetRecs[StateChangeKind.Software] ==
-                    sourceRecs[StateChangeKind.Software]) ||
-                (targetRecs[StateChangeKind.Software] -
-                                sourceRecs[StateChangeKind.Software] == 1 &&
-                    targetRecs[StateChangeKind.Hardware] ==
-                        sourceRecs[StateChangeKind.Hardware]))
-        ) {
-            if (isSingleCorrectChange == undefined) {
-                const changeKind = targetRecs[StateChangeKind.Hardware] -
-                            sourceRecs[StateChangeKind.Hardware] == 1
-                    ? StateChangeKind.Hardware
-                    : StateChangeKind.Software;
-                changedRecoveryElement = {
-                    index: i,
-                    changeKind: changeKind,
-                };
-                isSingleCorrectChange = true;
-            } else if (isSingleCorrectChange == true) {
-                return {
-                    isSingleRecovery: false,
-                    changedRecoveryElement: changedRecoveryElement,
-                };
-            }
-        } else if (
-            sourceNode.elementsStates[i]!.isActive ==
-                targetNode.elementsStates[i]!.isActive &&
-            sourceRecs[StateChangeKind.Hardware] ==
-                targetRecs[StateChangeKind.Hardware] &&
-            sourceRecs[StateChangeKind.Software] ==
-                targetRecs[StateChangeKind.Software]
+            equalStatesOrTargetUndefined(
+                sourceHardwareState,
+                targetHardwareState,
+            ) &&
+            equalStatesOrTargetUndefined(
+                sourceSoftwareState,
+                targetSoftwareState,
+            ) &&
+            isEqualCounts
         ) {
             continue;
+        } else if (
+            (
+                (
+                    equalStatesOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    ) &&
+                    equalCountsOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    ) &&
+                    stateBecomeActiveOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    ) &&
+                    countsDiffsEqualOneOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    )
+                ) ||
+                (
+                    equalStatesOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    ) &&
+                    equalCountsOrTargetUndefined(
+                        sourceSoftwareState,
+                        targetSoftwareState,
+                    ) &&
+                    stateBecomeActiveOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    ) &&
+                    countsDiffsEqualOneOrTargetUndefined(
+                        sourceHardwareState,
+                        targetHardwareState,
+                    )
+                )
+            )
+        ) {
+            if (isSingleCorrectChange == undefined) {
+                isSingleCorrectChange = true;
+                elementIndex = i;
+            } else if (isSingleCorrectChange == true) {
+                isSingleCorrectChange = false;
+                elementIndex = Infinity;
+            }
         } else {
             isSingleCorrectChange = false;
         }
@@ -935,15 +855,105 @@ function isSingleRecoveryBetweenNodes(
         if (isSingleCorrectChange == false) {
             return {
                 isSingleRecovery: false,
-                changedRecoveryElement: changedRecoveryElement,
+                recoveredElementIndex: Infinity,
             };
         }
     }
 
     return {
         isSingleRecovery: isSingleCorrectChange == true,
-        changedRecoveryElement: changedRecoveryElement,
+        recoveredElementIndex: elementIndex,
     };
+}
+
+function equalStatesOrTargetUndefined(
+    sourceState?: RecoveryState,
+    targetState?: RecoveryState,
+): boolean {
+    if (targetState === undefined) {
+        return true;
+    } else {
+        if (sourceState === undefined) {
+            return false;
+        }
+    }
+
+    return sourceState.isActive == targetState.isActive;
+}
+
+function stateBecomeInactiveOrTargetUndefined(
+    sourceState?: RecoveryState,
+    targetState?: RecoveryState,
+): boolean {
+    if (targetState === undefined) {
+        return true;
+    } else {
+        if (sourceState === undefined) {
+            return false;
+        }
+    }
+
+    return sourceState.isActive && !targetState.isActive;
+}
+
+function stateBecomeActiveOrTargetUndefined(
+    sourceState?: RecoveryState,
+    targetState?: RecoveryState,
+): boolean {
+    if (targetState === undefined) {
+        return true;
+    } else {
+        if (sourceState === undefined) {
+            return false;
+        }
+    }
+
+    return !sourceState.isActive && targetState.isActive;
+}
+
+function countBecomeInfiniteOrTargetUndefined(
+    sourceState?: RecoveryState,
+    targetState?: RecoveryState,
+): boolean {
+    if (targetState === undefined) {
+        return true;
+    } else {
+        if (sourceState === undefined) {
+            return false;
+        }
+    }
+
+    return sourceState.count == 0 && targetState.count === Infinity;
+}
+
+function equalCountsOrTargetUndefined(
+    sourceState?: RecoveryState,
+    targetState?: RecoveryState,
+): boolean {
+    if (targetState === undefined) {
+        return true;
+    } else {
+        if (sourceState === undefined) {
+            return false;
+        }
+    }
+
+    return sourceState.count == targetState.count;
+}
+
+function countsDiffsEqualOneOrTargetUndefined(
+    sourceState?: RecoveryState,
+    targetState?: RecoveryState,
+): boolean {
+    if (targetState === undefined) {
+        return true;
+    } else {
+        if (sourceState === undefined) {
+            return false;
+        }
+    }
+
+    return (targetState.count - sourceState.count) == 1;
 }
 
 export function isRecoveryStatesActive(
@@ -988,7 +998,6 @@ export function isSoftwareRecoveryStatesActive(
     const softwareExists = StateChangeKind.Software in recoveryStates;
 
     if (softwareExists) {
-        // Only Software exists, return true if active
         return recoveryStates[StateChangeKind.Software].isActive;
     }
 
