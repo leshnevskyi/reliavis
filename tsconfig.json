@@ -11,9 +11,7 @@
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"moduleResolution": "bundler",
-        "lib": [
-            "es5", "es6", "dom", "dom.iterable"
-        ]
+		"lib": ["es5", "es6", "dom", "dom.iterable"]
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files

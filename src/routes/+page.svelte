@@ -110,8 +110,6 @@
 
 	let svgElement = $state<SVGSVGElement | null>(null);
 
-	$inspect(systemStateNetwork);
-
 	$effect(() => {
 		if (svgElement == null || systemStateNetwork == null) return;
 
